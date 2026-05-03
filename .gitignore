@@ -1,0 +1,13 @@
+# Airflow
+logs/
+plugins/
+airflow-worker-logs/
+__pycache__/
+
+# Docker & OS
+.DS_Store
+.env
+postgres_data/
+
+# Dados (opcional - em caso de os CSVs serem pesados)
+# data/
