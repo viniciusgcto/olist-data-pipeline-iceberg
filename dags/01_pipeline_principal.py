@@ -123,10 +123,22 @@ def process_silver_to_gold():
     
     for table in ['dim_cliente', 'dim_produto', 'dim_tempo', 'fato_pedidos']:
         df = pd.read_parquet(f'/tmp/{table}.parquet')
+        
+        # Remove do catálogo o metadado antigo (se existir)
         try: catalog.drop_table(f"gold.{table}")
         except: pass
+        
+        # --- LIMPEZA FÍSICA DOS PARQUETS ANTIGOS ---
+        prefixo = f"iceberg/{table}/data/"
+        response_s3 = s3.list_objects_v2(Bucket='gold', Prefix=prefixo)
+        if 'Contents' in response_s3:
+            objetos_para_deletar = [{'Key': obj['Key']} for obj in response_s3['Contents']]
+            s3.delete_objects(Bucket='gold', Delete={'Objects': objetos_para_deletar})
+        # --------------------------------------------------------
+
+        # Cria a tabela e escreve o novo arquivo parquet (único e limpo)
         iceberg_tab = catalog.create_table(identifier=f"gold.{table}", schema=pa.Table.from_pandas(df).schema, location=f"s3://gold/iceberg/{table}")
-        iceberg_tab.append(pa.Table.from_pandas(df))
+        iceberg_tab.overwrite(pa.Table.from_pandas(df))
 
 # ==========================================
 # 5. ORQUESTRAÇÃO FINAL
