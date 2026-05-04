@@ -8,6 +8,7 @@ __pycache__/
 .DS_Store
 .env
 postgres_data/
-
-# Dados (opcional - em caso de os CSVs serem pesados)
-# data/
+minio_data/
+superset_home/
+*.db
+.airflow/

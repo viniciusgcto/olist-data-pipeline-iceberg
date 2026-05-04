@@ -15,7 +15,7 @@ x-airflow-common:
     - postgres
 
 services:
-  # Banco de dados necessário para o Airflow funcionar internamente
+  # Banco de dados necessário para o Airflow (Persistente)
   postgres:
     image: postgres:13
     environment:
@@ -24,8 +24,10 @@ services:
       - POSTGRES_DB=airflow
     ports:
       - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
 
-  # Inicializa o banco do Airflow e cria um usuário admin
+  # Inicializa o banco do Airflow e cria o usuário admin
   airflow-init:
     <<: *airflow-common
     entrypoint: /bin/bash
@@ -54,12 +56,12 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  # Nosso Storage (O "S3 Local")
+  # Nosso Storage (O "S3 Local" - Já era persistente)
   minio:
     image: minio/minio
     ports:
-      - "9000:9000"   # Porta para a API do S3
-      - "9001:9001"   # Porta para o Painel Visual
+      - "9000:9000"
+      - "9001:9001"
     environment:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=password123
@@ -67,7 +69,7 @@ services:
     volumes:
       - ./minio_data:/data
   
-  # Nosso Dashboard
+  # Nosso Dashboard (Agora configurado para persistência)
   superset:
     image: apache/superset:3.1.2
     user: "root"
@@ -75,10 +77,12 @@ services:
       - "8088:8088"
     environment:
       - SUPERSET_SECRET_KEY=chave_secreta_loovi_12345
+    volumes:
+      - ./superset_home:/app/superset_home
     command: >
       /bin/sh -c "
       pip install duckdb-engine boto3 &&
       superset db upgrade &&
-      superset fab create-admin --username admin --firstname Admin --lastname Loovi --email admin@loovi.com --password admin &&
+      superset fab create-admin --username admin --firstname Admin --lastname Loovi --email admin@loovi.com --password admin || true &&
       superset init &&
       gunicorn -w 2 --timeout 120 -b 0.0.0.0:8088 --limit-request-line 0 --limit-request-field_size 0 \"superset.app:create_app()\""
